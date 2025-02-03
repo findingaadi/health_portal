@@ -1,0 +1,45 @@
+version: "3.8"  # Defines Docker Compose version
+
+services:  # Define multiple services (backend, database, logging system)
+
+  backend:  # FastAPI Backend Service
+    build: ./backend  # Build the backend from the "backend/" folder
+    container_name: health_backend  # Name of the container
+    ports:
+      - "8000:8000"  # Expose FastAPI on port 8000
+    depends_on:
+      - postgres  # Wait for PostgreSQL to be ready before starting
+      - immudb  # Wait for Immudb to be ready before starting
+    volumes:
+      - ./backend:/app  # Syncs backend code inside the container
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/health_db
+      - IMMUDDB_HOST=immudb
+      - IMMUDDB_PORT=3322
+
+  postgres:  # PostgreSQL Database Service
+    image: postgres:latest  # Use the latest PostgreSQL version
+    container_name: health_postgres  # Name of the container
+    restart: always  # Restart if it crashes
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: health_db
+    ports:
+      - "5432:5432"  # Make PostgreSQL accessible on port 5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data  # Persist database data
+
+  immudb:  # Immudb (Immutable Database for Logging)
+    image: codenotary/immudb:latest  # Use the latest Immudb version
+    container_name: health_immudb  # Name of the container
+    restart: always
+    ports:
+      - "3322:3322"  # API Port
+      - "9497:9497"  # Web Console Port
+    volumes:
+      - immudb_data:/var/lib/immudb  # Persist immudb logs
+
+volumes:
+  pg_data:  # Volume for PostgreSQL
+  immudb_data:  # Volume for Immudb
