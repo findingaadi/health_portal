@@ -1,4 +1,4 @@
 fastapi
-uvicorndo
+uvicorn
 psycopg2
 immudb-py
