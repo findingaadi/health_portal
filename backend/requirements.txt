@@ -1,0 +1,4 @@
+fastapi
+uvicorndo
+psycopg2
+immudb-py

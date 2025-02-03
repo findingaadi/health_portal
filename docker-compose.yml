@@ -1,5 +1,3 @@
-version: "3.8"  # Defines Docker Compose version
-
 services:  # Define multiple services (backend, database, logging system)
 
   backend:  # FastAPI Backend Service
