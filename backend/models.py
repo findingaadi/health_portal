@@ -1,33 +1,36 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from .database import Base
+from database import Base
 
-#users table
-
+# Users Table
 class User(Base):
-    __tablename__ = "users" #the tablename in postgresql
+    __tablename__ = "users"  # The table name in PostgreSQL
 
-    id = Column(Integer, primary_key = True, index = True)
-    name = Column(String, nullable= False)
-    email = Column(String, unique= True, nullable= False)
-    password = Column(String, nullable= False)
-    role = Column(String, nullable = False)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    role = Column(String, nullable=False)  # doctor or patient
 
-    #relationship betweeen the doctor with patient record. 
-    #using back_populate in sqlalchemy makes the two relationship bidirectional
-    #generic example, i can search for users.doctor and print doctor.records.
-    records = relationship("PatientRecord", back_populates="doctor")
-    
+    # Relationships
+    # This establishes a bidirectional relationship between User and PatientRecord for doctors
+    doctor_records = relationship("PatientRecord", back_populates="doctor", foreign_keys="PatientRecord.doctor_id")
 
+    # This establishes a bidirectional relationship between User and PatientRecord for patients
+    patient_records = relationship("PatientRecord", back_populates="patient", foreign_keys="PatientRecord.patient_id")
+
+
+# Patient Records Table
 class PatientRecord(Base):
     __tablename__ = "patient_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    doctor_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    patient_id = Column(Integer, ForeignKey("users.id"), nullable=False) 
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)  
     record_details = Column(Text, nullable=False)
-    timestamp = Column(datetime, default = datetime.utcnow)
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
-    patient = relationship("User", foreign_keys=[patient_id], back_populates="records")
-    doctor = relationship("Users", foreign_keys=[doctor_id])
+    # Relationships
+    patient = relationship("User", back_populates="patient_records", foreign_keys=[patient_id])
+    doctor = relationship("User", back_populates="doctor_records", foreign_keys=[doctor_id])
