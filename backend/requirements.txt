@@ -4,3 +4,5 @@ psycopg2
 immudb-py
 sqlalchemy
 psycopg2
+pydantic[email]
+passlib
