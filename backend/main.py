@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from passlib.hash import pbkdf2_sha256
+from typing import List
 app = FastAPI()
 
 #create database tables
@@ -61,10 +62,10 @@ class UserResponse(BaseModel):
     role: str
 
     # To receive the response as in JSON format
-    class config: 
+    class Config: 
         orm_model = True
 
-@app.get("/users/", response_model= list[UserResponse])
+@app.get("/users/", response_model= List[UserResponse])
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
@@ -75,7 +76,7 @@ def get_users(db: Session = Depends(get_db)):
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail= "user is not found, please try again.")
+        raise HTTPException(status_code=404, detail= "User not found.")
     return user
 
 
@@ -86,7 +87,7 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None 
     role : str | None = None
     
-    class config: 
+    class Config: 
         orm_model = True
 
 
@@ -101,14 +102,14 @@ can declare the userid and then update its attributes on uvicorn.
 def update_user(user_id: int, user_update: UserUpdate = Body(...) , db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code= 404, detail= "user not found, please try again.")
+        raise HTTPException(status_code= 404, detail= "User not found.")
     
     if user_update.name:
         user.name = user_update.name
 
     if user_update.email:
         # check if the provided email is already existing or not
-        existing_user = db.query(User).filter(User.email == user_update.email).first()
+        existing_user = db.query(User).filter(User.email == user_update.email, User.id != user_id).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="email is already in use.")
         # if not then update the email
@@ -126,8 +127,8 @@ def update_user(user_id: int, user_update: UserUpdate = Body(...) , db: Session 
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code= 400, detail="user not found, please try again.")
+        raise HTTPException(status_code= 400, detail="User not found.")
     
     db.delete(user)
     db.commit()
-    return{user.name,"has been deleted off the record."}
+    return{f"User {user.name} has been deleted from the records."}
