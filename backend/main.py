@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, Depends, Body
 from database import engine, SessionLocal
 from models import Base,User, PatientRecord
@@ -6,14 +7,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from passlib.hash import pbkdf2_sha256
 from typing import List
+
 app = FastAPI()
 
 #create database tables
 Base.metadata.create_all(bind=engine)
 
-@app.get("/")
-def home():
-    return {"message":"welcome!"}
 
 def get_db():
     db = SessionLocal()
@@ -132,3 +131,100 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return{f"User {user.name} has been deleted from the records."}
+
+class PatientRecordCreate(BaseModel):
+    patient_id: int
+    doctor_id: int
+    record_details: str
+
+class PatientRecordResponse(BaseModel):
+    id: int
+    patient_id: int
+    doctor_id: int
+    record_details: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+@app.post("/records/", response_model=PatientRecordResponse)
+def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db)):
+    patient = db.query(User).filter(User.id == record.patient_id, User.role == "patient").first()
+    if not patient:
+        raise HTTPException(status_code=404, detail= "User not found")
+
+    doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail= "User not found")
+        
+    new_record = PatientRecord(
+        patient_id = record.patient_id,
+        doctor_id = record.doctor_id,
+        record_details = record.record_details,
+    )
+    db.add(new_record)
+    db.commit()
+    db.refresh(new_record)
+    return new_record
+
+@app.get("/records/", response_model=List[PatientRecordResponse])
+def get_all_records(db: Session = Depends(get_db)):
+    records = db.query(PatientRecord).all()
+    if not records:
+        raise HTTPException(status_code=404, detail= "No Patient record found.")
+    return records
+
+
+@app.get("/records/patient/{patient_id}", response_model= List[PatientRecordResponse])
+def get_records_by_patient(patient_id: int, db: Session=Depends(get_db)):
+
+    verify_patient = db.query(User).filter(User.id == patient_id, User.role == "patient").first()
+    if not verify_patient:
+            raise HTTPException(status_code=404, detail = "Patient not found.")
+    
+    patient_records = db.query(PatientRecord).filter(PatientRecord.patient_id == patient_id).all()
+    if not patient_records:
+        raise HTTPException(status_code=404, detail= "Record not found.")
+    return patient_records
+
+
+@app.get("/records/doctor/{doctor_id}", response_model= List[PatientRecordResponse])
+def get_records_by_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    doctor_records = db.query(PatientRecord).filter(PatientRecord.doctor_id == doctor_id).first()
+    if not doctor_records:
+        raise HTTPException(status_code=404, detail= "Record not found.")
+    return doctor_records
+
+class PatientRecordUpdate(BaseModel):
+    record_details:str | None = None
+
+    class Config:
+        orm_model= True
+
+@app.put("/records/update/{record_id}", response_model = PatientRecordResponse)
+def update_record(record_id: int, doctor_id:int, record_update: PatientRecordUpdate= Body(...),db: Session=Depends(get_db)):
+    record = db.query(PatientRecord).filter(PatientRecord.id == record_id).first()
+    if not record: 
+        raise HTTPException(status_code=404, detail="Record not found.")
+    # verify_doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
+    if (doctor_id != record.doctor_id):
+        raise HTTPException(status_code=403, detail="Only doctor who made the record can edit the record.")
+    
+    if record_update.record_details:
+        record.record_details = record_update.record_details
+
+        db.commit()
+        db.refresh(record)
+        return record
+
+@app.delete("/records/delete/{record_id}")
+def delete_record(record_id: int,doctor_id:int, db:Session=Depends(get_db)):
+    record = db.query(PatientRecord).filter(record_id == PatientRecord.id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail= "Record not found")
+    if (doctor_id != record.doctor_id):
+        raise HTTPException(status_code=403, detail= "Only the doctor who created the record is allowed to delete it.")
+    
+    db.delete(record)
+    db.commit()
+    return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
