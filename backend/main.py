@@ -147,14 +147,14 @@ class PatientRecordResponse(BaseModel):
     class Config:
         orm_mode = True
 
-@app.post("/records/", response_model=PatientRecordCreate)
+@app.post("/records/", response_model=PatientRecordResponse)
 def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db)):
     patient = db.query(User).filter(User.id == record.patient_id, User.role == "patient").first()
     if not patient:
         raise HTTPException(status_code=404, detail= "User not found")
 
     doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
-    if not patient:
+    if not doctor:
         raise HTTPException(status_code=404, detail= "User not found")
         
     new_record = PatientRecord(
@@ -188,7 +188,7 @@ def get_records_by_patient(patient_id: int, db: Session=Depends(get_db)):
     return patient_records
 
 
-@app.get("/records/doctor/{doctor_id}", response_model= PatientRecordResponse)
+@app.get("/records/doctor/{doctor_id}", response_model= List[PatientRecordResponse])
 def get_records_by_doctor(doctor_id: int, db: Session = Depends(get_db)):
     doctor_records = db.query(PatientRecord).filter(PatientRecord.doctor_id == doctor_id).first()
     if not doctor_records:
@@ -213,18 +213,18 @@ def update_record(record_id: int, doctor_id:int, record_update: PatientRecordUpd
     if record_update.record_details:
         record.record_details = record_update.record_details
 
-    db.commit()
-    db.refresh(record)
-    return record
+        db.commit()
+        db.refresh(record)
+        return record
 
 @app.delete("/records/delete/{record_id}")
 def delete_record(record_id: int,doctor_id:int, db:Session=Depends(get_db)):
     record = db.query(PatientRecord).filter(record_id == PatientRecord.id).first()
     if not record:
-        raise HTTPException(status_code=404, detail= "record not found")
+        raise HTTPException(status_code=404, detail= "Record not found")
     if (doctor_id != record.doctor_id):
         raise HTTPException(status_code=403, detail= "Only the doctor who created the record is allowed to delete it.")
     
     db.delete(record)
     db.commit()
-    return(f"The Patient{record.patient_id} has had their record: {record.id} deleted.")
+    return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
