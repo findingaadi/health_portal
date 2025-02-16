@@ -37,7 +37,7 @@ def hash_password(password:str):
 def create_user(user: UserCreate,db: Session =Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
-        raise HTTPException(status_code=400, details ="email already taken by another user")
+        raise HTTPException(status_code=400, detail ="email already taken by another user")
     
     hashed_password = hash_password(user.password)
 
@@ -228,3 +228,24 @@ def delete_record(record_id: int,doctor_id:int, db:Session=Depends(get_db)):
     db.delete(record)
     db.commit()
     return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
+
+#authentication
+
+class UserLogin(BaseModel):
+    email:EmailStr
+    password:str
+
+def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
+    return pbkdf2_sha256.verify(unhashed_pw,hashed_pw) #this was pain to get to initially, should've looked at documentation earlier. 
+   
+
+@app.post("/login/")
+def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
+    user = db.query(User).filter(user_credentials.email == User.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail= "user Email not found") #this is for now to test where the execption is raised
+    
+    if not verify_password(user_credentials.password, user.password):
+        raise HTTPException(status_code=404, detail= "Invalid email or password")
+    
+    return{"message": "Login Successful"}
