@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, Body
 from database import engine, SessionLocal
 from models import Base,User, PatientRecord
@@ -7,12 +7,16 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from passlib.hash import pbkdf2_sha256
 from typing import List
+import jwt
+import os
+from dotenv import load_dotenv
 
 app = FastAPI()
 
 #create database tables
 Base.metadata.create_all(bind=engine)
 
+load_dotenv()
 
 def get_db():
     db = SessionLocal()
@@ -241,11 +245,20 @@ def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
 
 @app.post("/login/")
 def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
-    user = db.query(User).filter(user_credentials.email == User.email).first()
+    user = db.query(User).filter(User.email == user_credentials.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail= "user Email not found") #this is for now to test where the execption is raised
+        raise HTTPException(status_code=400, detail= "Invalid email or password")
     
     if not verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=404, detail= "Invalid email or password")
+        raise HTTPException(status_code=400, detail= "Invalid email or password")
     
     return{"message": "Login Successful"}
+
+#jwt token to authenticate
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES= int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+
+
+def create_access_token(data:dict, expires_dealta: timedelta | None = None):
+    
