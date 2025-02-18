@@ -247,18 +247,30 @@ def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
 def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
     if not user:
-        raise HTTPException(status_code=400, detail= "Invalid email or password")
+        raise HTTPException(status_code=400, detail= "Invalid email")
     
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=400, detail= "Invalid email or password")
-    
-    return{"message": "Login Successful"}
+    access_token = create_access_token(
+        data ={"sub": user.email, "id": user.id, "role": user.role}, expiry = 10)
+
+
+    return{"access_token": access_token, "token_type": "bearer"}
+    # return{"message": "logged in"}
 
 #jwt token to authenticate
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES= int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+TOKEN_EXPIRE_MINUTES= int(os.getenv("TOKEN_EXPIRE_MINUTES",30)) #a string is being returned hence setting a default value as int to insure expiry mins is always an int
 
 
-def create_access_token(data:dict, expires_dealta: timedelta | None = None):
+def create_access_token(data:dict, expiry: int|None=None): #will assign a default expiry time below if not passed
+    data_copy = data.copy()#to prevent the original dictionary to be modified 
+    if expiry:
+        expire = datetime.utcnow()+ timedelta(minutes=expiry)
+    else: 
+        expire = datetime.utcnow() + timedelta(minutes= TOKEN_EXPIRE_MINUTES)
     
+    data_copy.update({"exp":expire})
+    return jwt.encode(data_copy, SECRET_KEY, ALGORITHM)
+
