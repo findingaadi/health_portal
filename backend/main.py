@@ -7,9 +7,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from passlib.hash import pbkdf2_sha256
 from typing import List
-import jwt
+from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 app = FastAPI()
 
@@ -24,6 +26,63 @@ def get_db():
         yield db
     finally:
         db.close()
+
+class UserLogin(BaseModel):
+    email:EmailStr
+    password:str
+
+def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
+    return pbkdf2_sha256.verify(unhashed_pw,hashed_pw)
+   
+
+@app.post("/login/")
+def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
+    user = db.query(User).filter(User.email == user_credentials.email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail= "Invalid email")
+    
+    if not verify_password(user_credentials.password, user.password):
+        raise HTTPException(status_code=400, detail= "Invalid email or password")
+    
+    access_token_expiry = timedelta(minutes=30)
+    access_token = create_access_token({"sub": user.email, "role": user.role}, access_token_expiry)
+
+
+    return{"access_token": access_token, "token_type": "bearer"}
+    # return{"message": "logged in"}
+
+#jwt token to authenticate
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+
+
+def create_access_token(data:dict, expiry: int|None=None): #will assign a default expiry time below if not passed
+    data_copy = data.copy()#to prevent the original dictionary to be modified 
+    if expiry:
+        expire = datetime.utcnow()+ expiry
+    else: 
+        expire = datetime.utcnow() + timedelta(minutes= 15)
+    
+    data_copy.update({"exp":expire})
+    return jwt.encode(data_copy, SECRET_KEY, ALGORITHM)
+
+#pass the token from authentication header
+security = HTTPBearer()
+#verify the token
+def get_current_user(credintials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    token = credintials.credentials #get the token
+    try:
+        payload = jwt.decode(token, SECRET_KEY, ALGORITHM)
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication")
+
+        user = db.query(User).filter(User.email == email).first()
+        if user is None:
+            raise HTTPException(status_code=401, detail= "User not found")
+    except JWTError:
+        raise HTTPException(status_code=401, detail = "Couldn't validate the user credentials")
+    return user #returning the authenticated user
 
 
 #schema to create a new user
@@ -69,7 +128,7 @@ class UserResponse(BaseModel):
         orm_model = True
 
 @app.get("/users/", response_model= List[UserResponse])
-def get_users(db: Session = Depends(get_db)):
+def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
     users = db.query(User).all()
     return users
 
@@ -138,7 +197,6 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 class PatientRecordCreate(BaseModel):
     patient_id: int
-    doctor_id: int
     record_details: str
 
 class PatientRecordResponse(BaseModel):
@@ -152,18 +210,21 @@ class PatientRecordResponse(BaseModel):
         orm_mode = True
 
 @app.post("/records/", response_model=PatientRecordResponse)
-def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db)):
+def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     patient = db.query(User).filter(User.id == record.patient_id, User.role == "patient").first()
     if not patient:
         raise HTTPException(status_code=404, detail= "User not found")
 
-    doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
-    if not doctor:
-        raise HTTPException(status_code=404, detail= "User not found")
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail= "Only doctors can add a patients record.")
+    
+    # doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
+    # if not doctor:
+    #     raise HTTPException(status_code=404, detail= "User not found")
         
     new_record = PatientRecord(
         patient_id = record.patient_id,
-        doctor_id = record.doctor_id,
+        doctor_id = current_user.id,
         record_details = record.record_details,
     )
     db.add(new_record)
@@ -180,20 +241,28 @@ def get_all_records(db: Session = Depends(get_db)):
 
 
 @app.get("/records/patient/{patient_id}", response_model= List[PatientRecordResponse])
-def get_records_by_patient(patient_id: int, db: Session=Depends(get_db)):
+def get_records_by_patient(patient_id: int, db: Session=Depends(get_db), current_user: User = Depends(get_current_user)):
 
     verify_patient = db.query(User).filter(User.id == patient_id, User.role == "patient").first()
     if not verify_patient:
-            raise HTTPException(status_code=404, detail = "Patient not found.")
+            raise HTTPException(status_code=403, detail = "Patient not found.")
     
     patient_records = db.query(PatientRecord).filter(PatientRecord.patient_id == patient_id).all()
     if not patient_records:
-        raise HTTPException(status_code=404, detail= "Record not found.")
+        raise HTTPException(status_code=403, detail= "Record not found.")
+    
+    if current_user.id != patient_id:
+        raise HTTPException(status_code=403, detail = "You can only view your own records.")
+
     return patient_records
 
 
 @app.get("/records/doctor/{doctor_id}", response_model= List[PatientRecordResponse])
-def get_records_by_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def get_records_by_doctor(doctor_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+    if current_user.id != doctor_id:
+        raise HTTPException(status_code=403, detail= "You can only view the records of your own patients.")
+
     doctor_records = db.query(PatientRecord).filter(PatientRecord.doctor_id == doctor_id).first()
     if not doctor_records:
         raise HTTPException(status_code=404, detail= "Record not found.")
@@ -206,12 +275,12 @@ class PatientRecordUpdate(BaseModel):
         orm_model= True
 
 @app.put("/records/update/{record_id}", response_model = PatientRecordResponse)
-def update_record(record_id: int, doctor_id:int, record_update: PatientRecordUpdate= Body(...),db: Session=Depends(get_db)):
+def update_record(record_id: int, record_update: PatientRecordUpdate= Body(...),db: Session=Depends(get_db), current_user : User = Depends(get_current_user)):
     record = db.query(PatientRecord).filter(PatientRecord.id == record_id).first()
     if not record: 
         raise HTTPException(status_code=404, detail="Record not found.")
-    # verify_doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
-    if (doctor_id != record.doctor_id):
+    
+    if current_user.id != record.doctor_id:
         raise HTTPException(status_code=403, detail="Only doctor who made the record can edit the record.")
     
     if record_update.record_details:
@@ -222,55 +291,14 @@ def update_record(record_id: int, doctor_id:int, record_update: PatientRecordUpd
         return record
 
 @app.delete("/records/delete/{record_id}")
-def delete_record(record_id: int,doctor_id:int, db:Session=Depends(get_db)):
+def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User= Depends(get_current_user)):
     record = db.query(PatientRecord).filter(record_id == PatientRecord.id).first()
     if not record:
         raise HTTPException(status_code=404, detail= "Record not found")
-    if (doctor_id != record.doctor_id):
+    if current_user.id != record.doctor_id:
         raise HTTPException(status_code=403, detail= "Only the doctor who created the record is allowed to delete it.")
     
     db.delete(record)
     db.commit()
     return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
-
-#authentication
-
-class UserLogin(BaseModel):
-    email:EmailStr
-    password:str
-
-def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
-    return pbkdf2_sha256.verify(unhashed_pw,hashed_pw) #this was pain to get to initially, should've looked at documentation earlier. 
-   
-
-@app.post("/login/")
-def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
-    user = db.query(User).filter(User.email == user_credentials.email).first()
-    if not user:
-        raise HTTPException(status_code=400, detail= "Invalid email")
-    
-    if not verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=400, detail= "Invalid email or password")
-    access_token = create_access_token(
-        data ={"sub": user.email, "id": user.id, "role": user.role}, expiry = 10)
-
-
-    return{"access_token": access_token, "token_type": "bearer"}
-    # return{"message": "logged in"}
-
-#jwt token to authenticate
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-TOKEN_EXPIRE_MINUTES= int(os.getenv("TOKEN_EXPIRE_MINUTES",30)) #a string is being returned hence setting a default value as int to insure expiry mins is always an int
-
-
-def create_access_token(data:dict, expiry: int|None=None): #will assign a default expiry time below if not passed
-    data_copy = data.copy()#to prevent the original dictionary to be modified 
-    if expiry:
-        expire = datetime.utcnow()+ timedelta(minutes=expiry)
-    else: 
-        expire = datetime.utcnow() + timedelta(minutes= TOKEN_EXPIRE_MINUTES)
-    
-    data_copy.update({"exp":expire})
-    return jwt.encode(data_copy, SECRET_KEY, ALGORITHM)
 

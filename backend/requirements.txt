@@ -8,3 +8,4 @@ pydantic[email]
 passlib
 pyjwt
 python-dotenv
+python-jose
