@@ -6,3 +6,6 @@ sqlalchemy
 psycopg2
 pydantic[email]
 passlib
+pyjwt
+python-dotenv
+python-jose

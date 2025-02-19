@@ -1,9 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 #postgres connection url using docker hostname, passoword and database name from docker-compose.yml
-DATABASE_URL = "postgresql://postgres:password@postgres:5432/health_db"
+DATABASE_URL = os.getenv("database_url")
 
 #the engine handles communication between fastapi and the database. 
 #create the engine
