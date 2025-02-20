@@ -39,7 +39,7 @@ def verify_password(unhashed_pw: str, hashed_pw:str)->bool:
 def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
     if not user:
-        raise HTTPException(status_code=400, detail= "Invalid email")
+        raise HTTPException(status_code=400, detail= "Invalid email or password")
     
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=400, detail= "Invalid email or password")
@@ -56,21 +56,18 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 
 
-def create_access_token(data:dict, expiry: int|None=None): #will assign a default expiry time below if not passed
+def create_access_token(data:dict, expiry):
     data_copy = data.copy()#to prevent the original dictionary to be modified 
-    if expiry:
-        expire = datetime.utcnow()+ expiry
-    else: 
-        expire = datetime.utcnow() + timedelta(minutes= 15)
-    
+    expire = datetime.utcnow()+ expiry
+ 
     data_copy.update({"exp":expire})
     return jwt.encode(data_copy, SECRET_KEY, ALGORITHM)
 
 #pass the token from authentication header
 security = HTTPBearer()
 #verify the token
-def get_current_user(credintials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credintials.credentials #get the token
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    token = credentials.credentials #get the token
     try:
         payload = jwt.decode(token, SECRET_KEY, ALGORITHM)
         email: str = payload.get("sub")
