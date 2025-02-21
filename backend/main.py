@@ -11,7 +11,7 @@ from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from immudb.client import ImmudbClient
 
 app = FastAPI()
 
@@ -122,7 +122,7 @@ class UserResponse(BaseModel):
 
     # To receive the response as in JSON format
     class Config: 
-        orm_model = True
+        from_attributes = True
 
 @app.get("/users/", response_model= List[UserResponse])
 def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
@@ -147,7 +147,7 @@ class UserUpdate(BaseModel):
     role : str | None = None
     
     class Config: 
-        orm_model = True
+        from_attributes = True
 
 
 """
@@ -204,7 +204,7 @@ class PatientRecordResponse(BaseModel):
     timestamp: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @app.post("/records/", response_model=PatientRecordResponse)
 def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -269,7 +269,7 @@ class PatientRecordUpdate(BaseModel):
     record_details:str | None = None
 
     class Config:
-        orm_model= True
+        from_attributes= True
 
 @app.put("/records/update/{record_id}", response_model = PatientRecordResponse)
 def update_record(record_id: int, record_update: PatientRecordUpdate= Body(...),db: Session=Depends(get_db), current_user : User = Depends(get_current_user)):
@@ -298,4 +298,14 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
     db.delete(record)
     db.commit()
     return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
+
+immudb_host = os.getenv("IMMUDDB_HOST", "immudb")
+immudb_port = os.getenv("IMMUDDB_PORT", "3322")
+
+immu_client = ImmudbClient(f"{immudb_host}:{immudb_port}")
+try:
+    immu_client.login("immudb", "immudb")
+    print("immudb logged in ")
+except Exception as e:
+    print(f"immudb login failed")
 
