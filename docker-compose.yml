@@ -30,6 +30,8 @@ services:  # Define multiple services (backend, database, logging system)
 
   immudb:  # Immudb (Immutable Database for Logging)
     image: codenotary/immudb:latest  # Use the latest Immudb version
+    environment:
+      - IMMUDB_PASSWORD= ${immudb_pw}
     container_name: health_immudb  # Name of the container
     restart: always
     ports:
