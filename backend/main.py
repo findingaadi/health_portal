@@ -188,6 +188,14 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code= 400, detail="User not found.")
     
+    check_patient_record = db.query(PatientRecord).filter(PatientRecord.patient_id == user.id).first()
+    if check_patient_record:
+        raise HTTPException(status_code=403, detail = "Cannot delete the patient as there is records for this patient")
+    
+    check_doctor_id = db.query(PatientRecord).filter(PatientRecord.doctor_id == user.id).first()
+    if check_doctor_id:
+        raise HTTPException(status_code=403, detail="Cannot delete the doctor as there is records made by the doctor")
+    
     db.delete(user)
     db.commit()
     return{f"User {user.name} has been deleted from the records."}

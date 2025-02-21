@@ -2,7 +2,7 @@ services:  # Define multiple services (backend, database, logging system)
 
   backend:  # FastAPI Backend Service
     build: ./backend  # Build the backend from the "backend/" folder
-    container_name: health_backend  # Name of the container
+    container_name: health_backend
     ports:
       - "8000:8000"  # Expose FastAPI on port 8000
     depends_on:
@@ -17,7 +17,7 @@ services:  # Define multiple services (backend, database, logging system)
 
   postgres:  # PostgreSQL Database Service
     image: postgres:latest  # Use the latest PostgreSQL version
-    container_name: health_postgres  # Name of the container
+    container_name: health_postgres
     restart: always  # Restart if it crashes
     environment:
       POSTGRES_USER: postgres
@@ -28,11 +28,9 @@ services:  # Define multiple services (backend, database, logging system)
     volumes:
       - pg_data:/var/lib/postgresql/data  # Persist database data
 
-  immudb:  # Immudb (Immutable Database for Logging)
-    image: codenotary/immudb:latest  # Use the latest Immudb version
-    environment:
-      - IMMUDB_PASSWORD= ${immudb_pw}
-    container_name: health_immudb  # Name of the container
+  immudb:
+    image: codenotary/immudb:latest
+    container_name: health_immudb 
     restart: always
     ports:
       - "3322:3322"  # API Port
@@ -41,5 +39,5 @@ services:  # Define multiple services (backend, database, logging system)
       - immudb_data:/var/lib/immudb  # Persist immudb logs
 
 volumes:
-  pg_data:  # Volume for PostgreSQL
-  immudb_data:  # Volume for Immudb
+  pg_data:
+  immudb_data:
