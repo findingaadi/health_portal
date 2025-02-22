@@ -27,6 +27,16 @@ def get_db():
     finally:
         db.close()
 
+immudb_host = os.getenv("IMMUDDB_HOST", "immudb")
+immudb_port = os.getenv("IMMUDDB_PORT", "3322")
+
+immu_client = ImmudbClient(f"{immudb_host}:{immudb_port}")
+try:
+    immu_client.login("immudb", "immudb")
+    print("immudb logged in ")
+except Exception as e:
+    print(f"immudb login failed")
+
 class UserLogin(BaseModel):
     email:EmailStr
     password:str
@@ -237,6 +247,12 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
     db.refresh(new_record)
     return new_record
 
+#to log into immudb
+def log_access(patient_id: int, doctor_id: int, action: str):
+    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
+    immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
+
+
 @app.get("/records/", response_model=List[PatientRecordResponse])
 def get_all_records(db: Session = Depends(get_db)):
     records = db.query(PatientRecord).all()
@@ -256,8 +272,10 @@ def get_records_by_patient(patient_id: int, db: Session=Depends(get_db), current
     if not patient_records:
         raise HTTPException(status_code=403, detail= "Record not found.")
     
-    if current_user.id != patient_id:
+    if current_user.id != patient_id and current_user.role != "doctor":
         raise HTTPException(status_code=403, detail = "You can only view your own records.")
+    
+    log_access(patient_id, current_user.id, "Viewed")
 
     return patient_records
 
@@ -307,13 +325,5 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
     db.commit()
     return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
 
-immudb_host = os.getenv("IMMUDDB_HOST", "immudb")
-immudb_port = os.getenv("IMMUDDB_PORT", "3322")
 
-immu_client = ImmudbClient(f"{immudb_host}:{immudb_port}")
-try:
-    immu_client.login("immudb", "immudb")
-    print("immudb logged in ")
-except Exception as e:
-    print(f"immudb login failed")
 
