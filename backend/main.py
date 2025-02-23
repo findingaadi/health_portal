@@ -277,6 +277,7 @@ def get_records_by_patient(patient_id: int, db: Session=Depends(get_db), current
     
     log_access(patient_id, current_user.id, "Viewed")
 
+
     return patient_records
 
 
@@ -326,4 +327,26 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
     return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
 
 
+# #to view the log from a patient
+# @app.get("/immdb/log/{patient_id}")
+# def get_immdb_logs(patient_id: int):
+#     key = str(patient_id).encode("utf-8")
+#     try:
+#         log_entry = immu_client.get(key)
+#         return{
+#             "patient": patient_id,
+#             "log_entry": log_entry.value.decode("utf-8")
+#         }
+#     except Exception:
+#         raise HTTPException(status_code=404, detail= "No record for this patient")
 
+@app.get("/immdb/log/{patient_id}")
+def get_immdb_logs(patient_id: int):
+
+    key = str(patient_id).encode("utf-8")
+    log_entry = immu_client.history(key,0,100,True)
+    logs =[]
+    for entry in log_entry:
+        entry_log = entry.value.decode("utf-8")
+        logs.append({"Patient": patient_id,"log": entry_log})
+    return logs
