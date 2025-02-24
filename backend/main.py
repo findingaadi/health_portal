@@ -193,7 +193,11 @@ def update_user(user_id: int, user_update: UserUpdate = Body(...) , db: Session 
 
 
 @app.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User=Depends(get_current_user)):
+
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail= "Access Denied!") 
+    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code= 400, detail="User not found.")
@@ -232,10 +236,6 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
 
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail= "Only doctors can add a patients record.")
-    
-    # doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
-    # if not doctor:
-    #     raise HTTPException(status_code=404, detail= "User not found")
         
     new_record = PatientRecord(
         patient_id = record.patient_id,
@@ -248,13 +248,17 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
     return new_record
 
 #to log into immudb
-def log_access(patient_id: int, doctor_id: int, action: str):
-    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
+def log_access(patient_id: int, doctor_id: int, action: str, detail: str = "N/A"):
+    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}. Detail: {detail}."
     immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
 
 
 @app.get("/records/", response_model=List[PatientRecordResponse])
-def get_all_records(db: Session = Depends(get_db)):
+def get_all_records(db: Session = Depends(get_db), current_user : User= Depends(get_current_user)):
+
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail= "Access denied!")
+    
     records = db.query(PatientRecord).all()
     if not records:
         raise HTTPException(status_code=404, detail= "No Patient record found.")
@@ -321,6 +325,8 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
         raise HTTPException(status_code=404, detail= "Record not found")
     if current_user.id != record.doctor_id:
         raise HTTPException(status_code=403, detail= "Only the doctor who created the record is allowed to delete it.")
+    
+    log_access(record.patient_id, current_user.id, "Deleted")
     
     db.delete(record)
     db.commit()
