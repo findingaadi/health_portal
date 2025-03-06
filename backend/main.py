@@ -66,6 +66,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 
 
+
 def create_access_token(data:dict, expiry):
     data_copy = data.copy()#to prevent the original dictionary to be modified 
     expire = datetime.utcnow()+ expiry
