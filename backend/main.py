@@ -59,7 +59,6 @@ def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
 
 
     return{"access_token": access_token, "token_type": "bearer"}
-    # return{"message": "logged in"}
 
 #jwt token to authenticate
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -136,7 +135,8 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 @app.get("/users/", response_model= List[UserResponse])
-def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
+# def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
+def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
 
@@ -246,11 +246,13 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
     db.add(new_record)
     db.commit()
     db.refresh(new_record)
+
+    log_access(patient.id, current_user.id, "Created")
     return new_record
 
 #to log into immudb
-def log_access(patient_id: int, doctor_id: int, action: str, detail: str = "N/A"):
-    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}. Detail: {detail}."
+def log_access(patient_id: int, doctor_id: int, action: str):
+    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
     immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
 
 
@@ -317,6 +319,7 @@ def update_record(record_id: int, record_update: PatientRecordUpdate= Body(...),
 
         db.commit()
         db.refresh(record)
+        log_access(record.patient_id, current_user.id, "Updated")
         return record
 
 @app.delete("/records/delete/{record_id}")
@@ -349,11 +352,22 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
 
 @app.get("/immdb/log/{patient_id}")
 def get_immdb_logs(patient_id: int):
+    try:
+        key = str(patient_id).encode("utf-8")
+        log_entry = immu_client.history(key,0,100,True)
+        logs =[]
+    
+        for entry in log_entry:
+            entry_log = entry.value.decode("utf-8")
+            logs.append({"Patient": patient_id,"log": entry_log})
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Immudb Logs not found")
 
-    key = str(patient_id).encode("utf-8")
-    log_entry = immu_client.history(key,0,100,True)
-    logs =[]
-    for entry in log_entry:
-        entry_log = entry.value.decode("utf-8")
-        logs.append({"Patient": patient_id,"log": entry_log})
-    return logs
+# @app.get("/immdb/all-keys")
+# def get_all_keys():
+#     try:
+#         keys = immu_client.scan("", 100, False)
+#         return [entry.key.decode("utf-8") for entry in keys.entries]
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error fetching keys: {str(e)}")
