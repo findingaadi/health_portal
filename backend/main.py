@@ -12,6 +12,7 @@ import os
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from immudb.client import ImmudbClient
+import time
 
 app = FastAPI()
 
@@ -27,15 +28,26 @@ def get_db():
     finally:
         db.close()
 
-immudb_host = os.getenv("IMMUDDB_HOST", "immudb")
-immudb_port = os.getenv("IMMUDDB_PORT", "3322")
+IMMUDDB_HOST = os.getenv("IMMUDDB_HOST")
+IMMUDDB_PORT = os.getenv("IMMUDDB_PORT")
+IMMUDDB_USER = os.getenv("IMMUDDB_USER")
+IMMUDDB_PASSWORD = os.getenv("IMMUDDB_PASSWORD")
 
-immu_client = ImmudbClient(f"{immudb_host}:{immudb_port}")
-try:
-    immu_client.login("immudb", "immudb")
-    print("immudb logged in ")
-except Exception as e:
-    print(f"immudb login failed")
+def get_immudb_client(retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            client = ImmudbClient(f"{IMMUDDB_HOST}:{IMMUDDB_PORT}")
+            client.login(IMMUDDB_USER, IMMUDDB_PASSWORD)
+            print("immudb logged in")
+            return client
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: immudb login failed. retrying.")
+            time.sleep(delay)
+    raise RuntimeError("Failed to connect to immudb after multiple attempts")
+
+immu_client = get_immudb_client()
+
+
 
 class UserLogin(BaseModel):
     email:EmailStr
@@ -252,8 +264,11 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
 
 #to log into immudb
 def log_access(patient_id: int, doctor_id: int, action: str):
-    log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
-    immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
+    try:
+        log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
+        immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
+    except Exception as e:
+        print(f"failed to log access in immudb: {e}")
 
 
 @app.get("/records/", response_model=List[PatientRecordResponse])
@@ -334,21 +349,8 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
     
     db.delete(record)
     db.commit()
-    return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
+    return{"message":f"The Patient {record.patient_id} has had their record: {record.id} deleted."}
 
-
-# #to view the log from a patient
-# @app.get("/immdb/log/{patient_id}")
-# def get_immdb_logs(patient_id: int):
-#     key = str(patient_id).encode("utf-8")
-#     try:
-#         log_entry = immu_client.get(key)
-#         return{
-#             "patient": patient_id,
-#             "log_entry": log_entry.value.decode("utf-8")
-#         }
-#     except Exception:
-#         raise HTTPException(status_code=404, detail= "No record for this patient")
 
 @app.get("/immdb/log/{patient_id}")
 def get_immdb_logs(patient_id: int):
@@ -356,13 +358,16 @@ def get_immdb_logs(patient_id: int):
         key = str(patient_id).encode("utf-8")
         log_entry = immu_client.history(key,0,100,True)
         logs =[]
-    
+
+        if not log_entry:
+            return {"message": "No logs found for this patient."}
+        
         for entry in log_entry:
             entry_log = entry.value.decode("utf-8")
             logs.append({"Patient": patient_id,"log": entry_log})
         return logs
     except Exception as e:
-        raise HTTPException(status_code=404, detail="Immudb Logs not found")
+        raise HTTPException(status_code=500, detail=f"Immudb error: {e}")
 
 # @app.get("/immdb/all-keys")
 # def get_all_keys():
