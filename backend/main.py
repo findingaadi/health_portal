@@ -11,7 +11,8 @@ from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from immudb.client import ImmudbClient
+import time
 
 app = FastAPI()
 
@@ -26,6 +27,27 @@ def get_db():
         yield db
     finally:
         db.close()
+
+IMMUDDB_HOST = os.getenv("IMMUDDB_HOST")
+IMMUDDB_PORT = os.getenv("IMMUDDB_PORT")
+IMMUDDB_USER = os.getenv("IMMUDDB_USER")
+IMMUDDB_PASSWORD = os.getenv("IMMUDDB_PASSWORD")
+
+def get_immudb_client(retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            client = ImmudbClient(f"{IMMUDDB_HOST}:{IMMUDDB_PORT}")
+            client.login(IMMUDDB_USER, IMMUDDB_PASSWORD)
+            print("immudb logged in")
+            return client
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: immudb login failed. retrying.")
+            time.sleep(delay)
+    raise RuntimeError("Failed to connect to immudb after multiple attempts")
+
+immu_client = get_immudb_client()
+
+
 
 class UserLogin(BaseModel):
     email:EmailStr
@@ -49,11 +71,11 @@ def login(user_credentials: UserLogin, db: Session=Depends(get_db)):
 
 
     return{"access_token": access_token, "token_type": "bearer"}
-    # return{"message": "logged in"}
 
 #jwt token to authenticate
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
+
 
 
 def create_access_token(data:dict, expiry):
@@ -122,10 +144,11 @@ class UserResponse(BaseModel):
 
     # To receive the response as in JSON format
     class Config: 
-        orm_model = True
+        from_attributes = True
 
 @app.get("/users/", response_model= List[UserResponse])
-def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
+# def get_users(db: Session = Depends(get_db), current_user:User = Depends(get_current_user)):
+def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
 
@@ -147,7 +170,7 @@ class UserUpdate(BaseModel):
     role : str | None = None
     
     class Config: 
-        orm_model = True
+        from_attributes = True
 
 
 """
@@ -183,10 +206,22 @@ def update_user(user_id: int, user_update: UserUpdate = Body(...) , db: Session 
 
 
 @app.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User=Depends(get_current_user)):
+
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail= "Access Denied!") 
+    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code= 400, detail="User not found.")
+    
+    check_patient_record = db.query(PatientRecord).filter(PatientRecord.patient_id == user.id).first()
+    if check_patient_record:
+        raise HTTPException(status_code=403, detail = "Cannot delete the patient as there is records for this patient")
+    
+    check_doctor_id = db.query(PatientRecord).filter(PatientRecord.doctor_id == user.id).first()
+    if check_doctor_id:
+        raise HTTPException(status_code=403, detail="Cannot delete the doctor as there is records made by the doctor")
     
     db.delete(user)
     db.commit()
@@ -204,7 +239,7 @@ class PatientRecordResponse(BaseModel):
     timestamp: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @app.post("/records/", response_model=PatientRecordResponse)
 def create_patient_records(record: PatientRecordCreate, db : Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -214,10 +249,6 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
 
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail= "Only doctors can add a patients record.")
-    
-    # doctor = db.query(User).filter(User.id == record.doctor_id, User.role == "doctor").first()
-    # if not doctor:
-    #     raise HTTPException(status_code=404, detail= "User not found")
         
     new_record = PatientRecord(
         patient_id = record.patient_id,
@@ -227,10 +258,25 @@ def create_patient_records(record: PatientRecordCreate, db : Session = Depends(g
     db.add(new_record)
     db.commit()
     db.refresh(new_record)
+
+    log_access(patient.id, current_user.id, "Created")
     return new_record
 
+#to log into immudb
+def log_access(patient_id: int, doctor_id: int, action: str):
+    try:
+        log_entry = f"Doctor {doctor_id} {action} medical record of Patient {patient_id} at {datetime.now()}."
+        immu_client.set(str(patient_id).encode("utf-8"), log_entry.encode("utf-8"))
+    except Exception as e:
+        print(f"failed to log access in immudb: {e}")
+
+
 @app.get("/records/", response_model=List[PatientRecordResponse])
-def get_all_records(db: Session = Depends(get_db)):
+def get_all_records(db: Session = Depends(get_db), current_user : User= Depends(get_current_user)):
+
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail= "Access denied!")
+    
     records = db.query(PatientRecord).all()
     if not records:
         raise HTTPException(status_code=404, detail= "No Patient record found.")
@@ -248,8 +294,11 @@ def get_records_by_patient(patient_id: int, db: Session=Depends(get_db), current
     if not patient_records:
         raise HTTPException(status_code=403, detail= "Record not found.")
     
-    if current_user.id != patient_id:
+    if current_user.id != patient_id and current_user.role != "doctor":
         raise HTTPException(status_code=403, detail = "You can only view your own records.")
+    
+    log_access(patient_id, current_user.id, "Viewed")
+
 
     return patient_records
 
@@ -269,7 +318,7 @@ class PatientRecordUpdate(BaseModel):
     record_details:str | None = None
 
     class Config:
-        orm_model= True
+        from_attributes= True
 
 @app.put("/records/update/{record_id}", response_model = PatientRecordResponse)
 def update_record(record_id: int, record_update: PatientRecordUpdate= Body(...),db: Session=Depends(get_db), current_user : User = Depends(get_current_user)):
@@ -285,6 +334,7 @@ def update_record(record_id: int, record_update: PatientRecordUpdate= Body(...),
 
         db.commit()
         db.refresh(record)
+        log_access(record.patient_id, current_user.id, "Updated")
         return record
 
 @app.delete("/records/delete/{record_id}")
@@ -295,7 +345,34 @@ def delete_record(record_id: int, db:Session=Depends(get_db), current_user: User
     if current_user.id != record.doctor_id:
         raise HTTPException(status_code=403, detail= "Only the doctor who created the record is allowed to delete it.")
     
+    log_access(record.patient_id, current_user.id, "Deleted")
+    
     db.delete(record)
     db.commit()
-    return{"message":f"The Patient{record.patient_id} has had their record: {record.id} deleted."}
+    return{"message":f"The Patient {record.patient_id} has had their record: {record.id} deleted."}
 
+
+@app.get("/immdb/log/{patient_id}")
+def get_immdb_logs(patient_id: int):
+    try:
+        key = str(patient_id).encode("utf-8")
+        log_entry = immu_client.history(key,0,100,True)
+        logs =[]
+
+        if not log_entry:
+            return {"message": "No logs found for this patient."}
+        
+        for entry in log_entry:
+            entry_log = entry.value.decode("utf-8")
+            logs.append({"Patient": patient_id,"log": entry_log})
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Immudb error: {e}")
+
+# @app.get("/immdb/all-keys")
+# def get_all_keys():
+#     try:
+#         keys = immu_client.scan("", 100, False)
+#         return [entry.key.decode("utf-8") for entry in keys.entries]
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error fetching keys: {str(e)}")
