@@ -3,6 +3,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
+from app.config import DATABASE_URL
+
 
 load_dotenv()
 #postgres connection url using docker hostname, passoword and database name from docker-compose.yml
