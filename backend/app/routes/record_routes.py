@@ -8,6 +8,8 @@ from app.models import PatientRecord, User
 from app.services.auth import create_access_token
 from .immudb_client import log_access
 from .immudb_client import immu_client
+from jose import jwt, JWTError
+from app.config import SECRET_KEY, ALGORITHM
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 router = APIRouter()
@@ -21,18 +23,18 @@ def get_db():
         db.close()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    from jose import jwt, JWTError
-    from app.config import SECRET_KEY, ALGORITHM
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        user_id = int(payload.get("sub"))  
+
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication")
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(User.id == user_id).first()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
-    except JWTError:
+    except JWTError as e:
+        print("error JWT:", str(e))
         raise HTTPException(status_code=401, detail="Couldn't validate the user credentials")
     return user
 
@@ -93,7 +95,9 @@ def get_records_by_patient(patient_id: int, db: Session = Depends(get_db), curre
         raise HTTPException(status_code=403, detail="Record not found.")
     if current_user.id != patient_id and current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="You can only view your own records.")
-    log_access(patient_id, current_user.id, "Viewed")
+    if current_user.id != patient_id:
+        log_access(patient_id, current_user.id, "Viewed")
+    
     return patient_records
 
 @router.get("/records/doctor/{doctor_id}", response_model=List[PatientRecordResponse])
@@ -132,8 +136,9 @@ def delete_record(record_id: int, db: Session = Depends(get_db), current_user: U
     return {"message": f"The Patient {record.patient_id} has had their record: {record.id} deleted."}
 
 @router.get("/immdb/log/{patient_id}")
-def get_immdb_logs(patient_id: int):
-    
+def get_immdb_logs(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != patient_id:
+        raise HTTPException(status_code = 403, detail= "You can only view your own logs")
     try:
         key = str(patient_id).encode("utf-8")
         log_entry = immu_client.history(key, 0, 100, True)

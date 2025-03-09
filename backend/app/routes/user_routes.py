@@ -69,7 +69,8 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
     access_token_expiry = timedelta(minutes=30)
-    access_token = create_access_token({"sub": user.email, "role": user.role}, access_token_expiry)
+    # Passing the user id as string as int isnt accepted
+    access_token = create_access_token({"sub": str(user.id), "role": user.role, "name": user.name}, access_token_expiry)
     return {"access_token": access_token, "token_type": "bearer", "role":user.role}
 
 @router.post("/users/", response_model=UserResponse)
@@ -95,11 +96,10 @@ def get_users(db: Session = Depends(get_db)):
     return users
 
 @router.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
-    return user
+def get_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied!")
+    return current_user
 
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, user_update: UserUpdate = Body(...), db: Session = Depends(get_db)):
