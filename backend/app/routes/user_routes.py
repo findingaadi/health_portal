@@ -70,7 +70,7 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid email or password")
     access_token_expiry = timedelta(minutes=30)
     access_token = create_access_token({"sub": user.email, "role": user.role}, access_token_expiry)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role":user.role}
 
 @router.post("/users/", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
