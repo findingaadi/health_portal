@@ -3,22 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Dashboard</title>
+    <title>Update Medical Record</title>
     <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
     <div class="dashboard-container">
         <header>
-            <h1>Doctor's Dashboard</h1>
+            <h1>Update Medical Record</h1>
+            <button onclick="window.location.href='doctor.html'">Back to Dashboard</button>
             <button id="logoutBtn" class="logout-btn">Logout</button>
         </header>
 
-        <section class="welcome-section">
-            <h2 id="welcomeMessage">Welcome Doctor</h2>
-        </section>
+        <h2>Search Patient Records to Update</h2>
 
         <section class="search-section">
-            <h3>Search for Patient Records</h3>
             <input type="number" id="patientIdInput" placeholder="Enter Patient ID" required>
             <button id="searchPatientBtn">Search</button>
             <p id="searchError" class="error-message"></p>
@@ -31,29 +29,22 @@
                     <tr>
                         <th>Record ID</th>
                         <th>Details</th>
-                        <th>Doctor ID</th>
                         <th>Timestamp</th>
+                        <th>Select</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </section>
 
-        <button id="showAddRecordForm">Add Record</button>
-
-        <section class="add-record-section" id="addRecordForm" style="display: none;">
-            <h3>Add Medical Record</h3>
-            <textarea id="recordDetails" placeholder="Enter Record Details"></textarea>
-            <button id="confirmAddRecord">Confirm</button>
-            <button id="cancelAddRecord">Cancel</button>
-        </section>
-
-        <section class="navigation-section">
-            <button onclick="window.location.href='update_record.html'">Update Record</button>
-            <button onclick="window.location.href='delete_record.html'">Delete Record</button>
+        <section class="update-record-section" id="updateForm" style="display: none;">
+            <h3>Update Medical Record</h3>
+            <textarea id="updatedDetails" placeholder="Enter updated details"></textarea>
+            <button id="confirmUpdateBtn">Confirm Update</button>
+            <button id="cancelUpdateBtn">Cancel</button>
         </section>
     </div>
 
-    <script src="../js/doctor.js"></script>
+    <script src="../js/update_record.js"></script>
 </body>
 </html>

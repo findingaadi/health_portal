@@ -73,7 +73,7 @@ def create_patient_records(record: PatientRecordCreate, db: Session = Depends(ge
     db.add(new_record)
     db.commit()
     db.refresh(new_record)
-    log_access(patient.id, current_user.id, "Created")
+    # log_access(patient.id, current_user.id, "Created")
     return new_record
 
 @router.get("/records/", response_model=List[PatientRecordResponse])
@@ -95,8 +95,8 @@ def get_records_by_patient(patient_id: int, db: Session = Depends(get_db), curre
         raise HTTPException(status_code=403, detail="Record not found.")
     if current_user.id != patient_id and current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="You can only view your own records.")
-    if current_user.id != patient_id:
-        log_access(patient_id, current_user.id, "Viewed")
+    # if current_user.id != patient_id:
+        # log_access(patient_id, current_user.id, "Viewed")
     
     return patient_records
 
@@ -120,7 +120,7 @@ def update_record(record_id: int, record_update: PatientRecordUpdate = Body(...)
         record.record_details = record_update.record_details
         db.commit()
         db.refresh(record)
-        log_access(record.patient_id, current_user.id, "Updated")
+        # log_access(record.patient_id, current_user.id, "Updated")
         return record
 
 @router.delete("/records/delete/{record_id}")
@@ -130,7 +130,7 @@ def delete_record(record_id: int, db: Session = Depends(get_db), current_user: U
         raise HTTPException(status_code=404, detail="Record not found")
     if current_user.id != record.doctor_id:
         raise HTTPException(status_code=403, detail="Only the doctor who created the record is allowed to delete it.")
-    log_access(record.patient_id, current_user.id, "Deleted")
+    # log_access(record.patient_id, current_user.id, "Deleted")
     db.delete(record)
     db.commit()
     return {"message": f"The Patient {record.patient_id} has had their record: {record.id} deleted."}

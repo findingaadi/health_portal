@@ -8,6 +8,7 @@ from app.services.auth import verify_password, hash_password, create_access_toke
 from datetime import timedelta
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
+from app.models import PatientRecord
 from app.config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
@@ -121,7 +122,6 @@ def update_user(user_id: int, user_update: UserUpdate = Body(...), db: Session =
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from app.models import PatientRecord  # Import here to avoid circular imports
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Access Denied!")
     user = db.query(User).filter(User.id == user_id).first()

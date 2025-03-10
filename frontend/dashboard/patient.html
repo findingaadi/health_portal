@@ -12,22 +12,30 @@
             <h1>Patient's Dashboard</h1>
             <button id="logoutBtn" class="logout-btn">Logout</button>
         </header>
-        <h2 id="welcomeMessage">Welcome user</h2>
 
-        <section class="records-section">
-            <h3>Medical Records</h3>
-            <div id="medicalRecords" class="records-container">
-                <p class="loading-text">Loading records</p>
-            </div>
+        <section class="welcome-section">
+            <h2 id="welcomeMessage">Welcome, Patient</h2>
         </section>
 
-        <section class="logs-section">
-            <h3>Medical Record Logs</h3>
-            <div id="medicalLogs" class="logs-container">
-                <p class="loading-text">Loading logs</p>
-            </div>
-        </section>
+        <h3 class="section-title">Medical Records</h3>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Record ID</th>
+                    <th>Doctor ID</th>
+                    <th>Details</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="medicalRecords"></tbody>
+        </table>
+
+        <h3 class="section-title">Medical Record Logs</h3>
+        <div class="logs-container">
+            <ul id="medicalLogs"></ul>
+        </div>
     </div>
+
     <script src="../js/patient.js"></script>
 </body>
 </html>
