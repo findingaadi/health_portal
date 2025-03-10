@@ -25,10 +25,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        user_id = int(payload.get("sub"))  
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication")
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(User.id == user_id).first()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
     except JWTError:
@@ -96,11 +96,14 @@ def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
 
-@router.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/users/{user_id}", response_model= UserResponse)
+def get_user(user_id: int, db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
     if current_user.id != user_id and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Access denied!")
-    return current_user
+        raise HTTPException(status_code=403, detail="Access denied!")    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail= "User not found.")
+    return user
 
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, user_update: UserUpdate = Body(...), db: Session = Depends(get_db)):
