@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Medical Record</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Delete Medical Record</h1>
+            <button onclick="window.location.href='doctor.html'">Back to Dashboard</button>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </header>
+
+        <h2>Search Patient Records to Delete</h2>
+
+        <section class="search-section">
+            <input type="number" id="patientIdInput" placeholder="Enter Patient ID" required>
+            <button id="searchPatientBtn">Search</button>
+            <p id="searchError" class="error-message"></p>
+        </section>
+
+        <section class="records-section">
+            <h3>Medical Records</h3>
+            <table id="medicalRecordsTable">
+                <thead>
+                    <tr>
+                        <th>Record ID</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                        <th>Select</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="delete-record-section" id="deleteConfirm" style="display: none;">
+            <h3>Are you sure you want to delete this record?</h3>
+            <button id="confirmDeleteBtn">Yes, Delete</button>
+            <button id="cancelDeleteBtn">Cancel</button>
+        </section>
+    </div>
+
+    <script src="../js/delete_record.js"></script>
+</body>
+</html>

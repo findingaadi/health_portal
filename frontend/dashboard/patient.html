@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Patient's Dashboard</h1>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </header>
+
+        <section class="welcome-section">
+            <h2 id="welcomeMessage">Welcome, Patient</h2>
+        </section>
+
+        <h3 class="section-title">Medical Records</h3>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Record ID</th>
+                    <th>Doctor ID</th>
+                    <th>Details</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="medicalRecords"></tbody>
+        </table>
+
+        <h3 class="section-title">Medical Record Logs</h3>
+        <div class="logs-container">
+            <ul id="medicalLogs"></ul>
+        </div>
+    </div>
+
+    <script src="../js/patient.js"></script>
+</body>
+</html>

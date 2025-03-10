@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Doctor's Dashboard</h1>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </header>
+
+        <section class="welcome-section">
+            <h2 id="welcomeMessage">Welcome Doctor</h2>
+        </section>
+
+        <section class="search-section">
+            <h3>Search for Patient Records</h3>
+            <input type="number" id="patientIdInput" placeholder="Enter Patient ID" required>
+            <button id="searchPatientBtn">Search</button>
+            <p id="searchError" class="error-message"></p>
+        </section>
+
+        <section class="records-section">
+            <h3>Medical Records</h3>
+            <table id="medicalRecordsTable">
+                <thead>
+                    <tr>
+                        <th>Record ID</th>
+                        <th>Details</th>
+                        <th>Doctor ID</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <button id="showAddRecordForm">Add Record</button>
+
+        <section class="add-record-section" id="addRecordForm" style="display: none;">
+            <h3>Add Medical Record</h3>
+            <textarea id="recordDetails" placeholder="Enter Record Details"></textarea>
+            <button id="confirmAddRecord">Confirm</button>
+            <button id="cancelAddRecord">Cancel</button>
+        </section>
+
+        <section class="navigation-section">
+            <button onclick="window.location.href='update_record.html'">Update Record</button>
+            <button onclick="window.location.href='delete_record.html'">Delete Record</button>
+        </section>
+    </div>
+
+    <script src="../js/doctor.js"></script>
+</body>
+</html>

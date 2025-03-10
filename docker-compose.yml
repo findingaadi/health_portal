@@ -10,6 +10,7 @@ services:  # Define multiple services (backend, database, logging system)
       - immudb  # Wait for Immudb to be ready before starting
     volumes:
       - ./backend:/app  # Syncs backend code inside the container
+      - ./frontend:/app/frontend
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/health_db
       - IMMUDDB_HOST=immudb

@@ -1,0 +1,241 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f9fc;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+.dashboard-container {
+    width: 80%;
+    margin: 30px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #007bff;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+}
+
+.logout-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.logout-btn:hover {
+    background: #e60000;
+}
+
+.section-title {
+    background: #007bff;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.search-container {
+    text-align: center;
+    padding: 15px;
+}
+
+.search-container input {
+    padding: 8px;
+    width: 200px;
+    margin-right: 10px;
+}
+
+.search-container button {
+    padding: 8px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.search-container button:hover {
+    background: #0056b3;
+}
+
+.records-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.records-table th, .records-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+.records-table th {
+    background: #007bff;
+    color: white;
+}
+
+.navigation-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.navigation-container button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+.navigation-container button:hover {
+    background: #0056b3;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f9fc;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+.dashboard-container {
+    width: 80%;
+    margin: 30px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #007bff;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+}
+
+.logout-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.logout-btn:hover {
+    background: #e60000;
+}
+
+h2#welcomeMessage {
+    text-align: center;
+    margin: 15px 0;
+}
+
+.search-section, .add-record-section {
+    text-align: center;
+    margin: 15px 0;
+    padding: 10px;
+}
+
+.search-section input, .add-record-section textarea {
+    width: 80%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#searchPatientBtn, #confirmAddRecord, .navigation-section button {
+    background: #007bff;
+    color: white;
+}
+
+#searchPatientBtn:hover, #confirmAddRecord:hover, .navigation-section button:hover {
+    background: #0056b3;
+}
+
+#cancelAddRecord {
+    background: #dc3545;
+    color: white;
+}
+
+#cancelAddRecord:hover {
+    background: #c82333;
+}
+
+.records-section {
+    margin-top: 15px;
+}
+
+.records-section h3 {
+    background: #007bff;
+    color: white;
+    padding: 8px;
+    text-align: center;
+    border-radius: 5px;
+}
+
+#medicalRecordsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#medicalRecordsTable th, #medicalRecordsTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+#medicalRecordsTable th {
+    background: #007bff;
+    color: white;
+}
+
+#showAddRecordForm {
+    background: #007bff;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#showAddRecordForm:hover {
+    background: #0056b3;
+}
+
+.navigation-section {
+    text-align: center;
+    margin-top: 20px;
+}

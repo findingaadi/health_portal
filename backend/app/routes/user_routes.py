@@ -8,6 +8,7 @@ from app.services.auth import verify_password, hash_password, create_access_toke
 from datetime import timedelta
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
+from app.models import PatientRecord
 from app.config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
@@ -24,10 +25,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        user_id = int(payload.get("sub"))  
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication")
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(User.id == user_id).first()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
     except JWTError:
@@ -69,8 +70,9 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
     access_token_expiry = timedelta(minutes=30)
-    access_token = create_access_token({"sub": user.email, "role": user.role}, access_token_expiry)
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Passing the user id as string as int isnt accepted
+    access_token = create_access_token({"sub": str(user.id), "role": user.role, "name": user.name}, access_token_expiry)
+    return {"access_token": access_token, "token_type": "bearer", "role":user.role}
 
 @router.post("/users/", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -94,11 +96,13 @@ def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
 
-@router.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+@router.get("/users/{user_id}", response_model= UserResponse)
+def get_user(user_id: int, db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied!")    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        raise HTTPException(status_code=404, detail= "User not found.")
     return user
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -121,7 +125,6 @@ def update_user(user_id: int, user_update: UserUpdate = Body(...), db: Session =
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from app.models import PatientRecord  # Import here to avoid circular imports
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Access Denied!")
     user = db.query(User).filter(User.id == user_id).first()
